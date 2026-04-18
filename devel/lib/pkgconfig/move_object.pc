@@ -1,8 +1,0 @@
-prefix=/home/ayush/DL_Hackathon/Deimos_task1/devel
-
-Name: move_object
-Description: Description of move_object
-Version: 0.0.1
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

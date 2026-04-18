@@ -1,8 +1,0 @@
-prefix=/home/ayush/DL_Hackathon/Deimos_task1/install
-
-Name: hybrid_planner_repo
-Description: Description of hybrid_planner_repo
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 
