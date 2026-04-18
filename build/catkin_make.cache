@@ -1,0 +1,2 @@
+hybrid_planner_repo:turtlebot3/turtlebot3:turtlebot3/turtlebot3_bringup:turtlebot3/turtlebot3_description:turtlebot3/turtlebot3_navigation:turtlebot3/turtlebot3_slam:turtlebot3/turtlebot3_teleop:turtlebot3_simulations/MoveObject:turtlebot3_simulations/turtlebot3_gazebo:turtlebot3_simulations/turtlebot3_simulations
+-DCATKIN_DEVEL_PREFIX=/home/ayush/DL_Hackathon/Deimos_task1/devel -DCMAKE_INSTALL_PREFIX=/home/ayush/DL_Hackathon/Deimos_task1/install -G Unix Makefiles
