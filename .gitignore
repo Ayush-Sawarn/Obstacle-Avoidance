@@ -2,3 +2,4 @@ build/
 devel/ 
 src/hybrid_planner_repo/
 .catkin_workspace
+.codex
