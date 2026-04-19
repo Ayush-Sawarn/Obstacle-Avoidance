@@ -1,208 +1,174 @@
 #!/usr/bin/env python
 """
-Compute DWA performance metrics from CSV
-Metrics: path length, time, smoothness, velocity stats, clearance
+Compute navigation metrics from TurtleBot3 metrics CSV.
+
+Metrics reported:
+- Goal Reach Rate
+- Collision Count
+- Path Optimality
+- Re-planning Speed
 """
 
-import csv
-import numpy as np
 import argparse
+import csv
 import json
 import math
+
 
 class MetricsComputer:
     def __init__(self, csv_file):
         self.csv_file = csv_file
-        self.data = self._load_csv()
+        self.rows = self._load_csv()
         self.metrics = {}
-    
-    def _load_csv(self):
-        """Load CSV file"""
-        data = {
-            'time': [], 'x': [], 'y': [],
-            'vx': [], 'vy': [], 'omega': [],
-            'linear_velocity': [], 'distance_from_start': [],
-            'goal_status': []
-        }
-        
-        try:
-            with open(self.csv_file, 'r') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    data['time'].append(float(row['time']))
-                    data['x'].append(float(row['x']))
-                    data['y'].append(float(row['y']))
-                    data['vx'].append(float(row['vx']))
-                    data['vy'].append(float(row['vy']))
-                    data['omega'].append(float(row['omega']))
-                    data['linear_velocity'].append(float(row['linear_velocity']))
-                    data['distance_from_start'].append(float(row['distance_from_start']))
-                    data['goal_status'].append(row['goal_status'])
-            
-            return data
-        except Exception as e:
-            print(f"[ERROR] Failed to load CSV: {e}")
-            return None
-    
-    def compute_path_length(self):
-        """Total distance traveled"""
-        x = np.array(self.data['x'])
-        y = np.array(self.data['y'])
-        
-        dx = np.diff(x)
-        dy = np.diff(y)
-        distances = np.sqrt(dx**2 + dy**2)
-        
-        path_length = np.sum(distances)
-        self.metrics['path_length_m'] = float(path_length)
-        
-        return path_length
-    
-    def compute_time_to_goal(self):
-        """Time from start to goal completion"""
-        times = np.array(self.data['time'])
-        statuses = self.data['goal_status']
-        
-        # Find when goal was succeeded
-        goal_time = times[-1]
-        for i, status in enumerate(statuses):
-            if status == "SUCCEEDED":
-                goal_time = times[i]
-                break
-        
-        self.metrics['time_to_goal_s'] = float(goal_time)
-        
-        return goal_time
-    
-    def compute_smoothness(self):
-        """Trajectory smoothness - sum of angular changes"""
-        x = np.array(self.data['x'])
-        y = np.array(self.data['y'])
-        
-        # Calculate heading angles
-        dx = np.diff(x)
-        dy = np.diff(y)
-        angles = np.arctan2(dy, dx)
-        
-        # Calculate angular changes
-        angle_diffs = np.abs(np.diff(angles))
-        # Handle wrap-around
-        angle_diffs = np.minimum(angle_diffs, 2*np.pi - angle_diffs)
-        
-        smoothness = np.sum(angle_diffs)
-        self.metrics['smoothness_rad'] = float(smoothness)
-        self.metrics['avg_curvature_rad_per_m'] = float(np.mean(angle_diffs)) if len(angle_diffs) > 0 else 0
-        
-        return smoothness
-    
-    def compute_velocity_metrics(self):
-        """Velocity statistics"""
-        v_linear = np.array(self.data['linear_velocity'])
-        omega = np.array(self.data['omega'])
-        
-        self.metrics['avg_linear_velocity_m_s'] = float(np.mean(v_linear))
-        self.metrics['max_linear_velocity_m_s'] = float(np.max(v_linear))
-        self.metrics['min_linear_velocity_m_s'] = float(np.min(v_linear))
-        self.metrics['linear_velocity_std_m_s'] = float(np.std(v_linear))
-        
-        self.metrics['avg_angular_velocity_rad_s'] = float(np.mean(np.abs(omega)))
-        self.metrics['max_angular_velocity_rad_s'] = float(np.max(np.abs(omega)))
-        
-        # Velocity reversals (stops and direction changes)
-        velocity_sign_changes = np.sum(np.diff(np.sign(v_linear)) != 0)
-        self.metrics['velocity_reversals'] = int(velocity_sign_changes)
-    
-    def compute_acceleration(self):
-        """Acceleration metrics"""
-        v_linear = np.array(self.data['linear_velocity'])
-        time = np.array(self.data['time'])
-        
-        dv = np.diff(v_linear)
-        dt = np.diff(time)
-        dt = np.where(dt == 0, 1e-6, dt)  # Avoid division by zero
-        
-        acceleration = dv / dt
-        
-        self.metrics['max_acceleration_m_s2'] = float(np.max(np.abs(acceleration)))
-        self.metrics['avg_acceleration_m_s2'] = float(np.mean(np.abs(acceleration)))
-    
-    def compute_success_metrics(self):
-        """Goal achievement metrics"""
-        statuses = self.data['goal_status']
-        
-        if "SUCCEEDED" in statuses:
-            self.metrics['goal_reached'] = True
-        else:
-            self.metrics['goal_reached'] = False
-        
 
-    
+    def _load_csv(self):
+        rows = []
+        with open(self.csv_file, "r") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                row["time"] = float(row["time"])
+                row["x"] = float(row["x"])
+                row["y"] = float(row["y"])
+                row["attempt_id"] = int(float(row["attempt_id"]))
+                row["goal_x"] = float(row["goal_x"]) if row["goal_x"] not in ("", "nan") else float("nan")
+                row["goal_y"] = float(row["goal_y"]) if row["goal_y"] not in ("", "nan") else float("nan")
+                row["goal_reached_count"] = int(float(row["goal_reached_count"]))
+                row["collision_count"] = int(float(row["collision_count"]))
+                row["plan_update_count"] = int(float(row["plan_update_count"]))
+                row["last_plan_update_time"] = (
+                    float(row["last_plan_update_time"])
+                    if row["last_plan_update_time"] not in ("", "nan")
+                    else float("nan")
+                )
+                rows.append(row)
+        return rows
+
+    @staticmethod
+    def _distance(x1, y1, x2, y2):
+        return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+    def compute_goal_reach_rate(self):
+        attempts = sorted({row["attempt_id"] for row in self.rows if row["attempt_id"] > 0})
+        succeeded_attempts = 0
+
+        for attempt_id in attempts:
+            attempt_rows = [row for row in self.rows if row["attempt_id"] == attempt_id]
+            statuses = {row["goal_status"] for row in attempt_rows}
+            if "SUCCEEDED" in statuses:
+                succeeded_attempts += 1
+
+        total_attempts = len(attempts)
+        goal_reach_rate = float(succeeded_attempts) / float(total_attempts) if total_attempts else 0.0
+
+        self.metrics["goal_reach_rate"] = goal_reach_rate
+        self.metrics["goal_reach_rate_percent"] = goal_reach_rate * 100.0
+        self.metrics["successful_goals"] = succeeded_attempts
+        self.metrics["total_goal_attempts"] = total_attempts
+
+    def compute_collision_count(self):
+        collision_count = max((row["collision_count"] for row in self.rows), default=0)
+        self.metrics["collision_count"] = collision_count
+
+    def compute_path_optimality(self):
+        attempts = sorted({row["attempt_id"] for row in self.rows if row["attempt_id"] > 0})
+        optimality_scores = []
+
+        for attempt_id in attempts:
+            attempt_rows = [row for row in self.rows if row["attempt_id"] == attempt_id]
+            if len(attempt_rows) < 2:
+                continue
+
+            statuses = {row["goal_status"] for row in attempt_rows}
+            if "SUCCEEDED" not in statuses:
+                continue
+
+            start_row = attempt_rows[0]
+            goal_rows = [row for row in attempt_rows if not math.isnan(row["goal_x"]) and not math.isnan(row["goal_y"])]
+            if not goal_rows:
+                continue
+
+            goal_row = goal_rows[-1]
+            straight_line = self._distance(start_row["x"], start_row["y"], goal_row["goal_x"], goal_row["goal_y"])
+
+            path_length = 0.0
+            for prev_row, cur_row in zip(attempt_rows[:-1], attempt_rows[1:]):
+                path_length += self._distance(prev_row["x"], prev_row["y"], cur_row["x"], cur_row["y"])
+
+            if path_length <= 1e-6:
+                continue
+
+            optimality_scores.append(straight_line / path_length if straight_line > 0 else 0.0)
+
+        self.metrics["path_optimality"] = sum(optimality_scores) / len(optimality_scores) if optimality_scores else 0.0
+        self.metrics["path_optimality_samples"] = len(optimality_scores)
+
+    def compute_replanning_speed(self):
+        update_times = []
+        last_time = None
+
+        for row in self.rows:
+            current_time = row["last_plan_update_time"]
+            if math.isnan(current_time):
+                continue
+            if last_time is None or abs(current_time - last_time) > 1e-6:
+                update_times.append(current_time)
+                last_time = current_time
+
+        if len(update_times) < 2:
+            self.metrics["replanning_speed_hz"] = 0.0
+            self.metrics["avg_replanning_interval_s"] = 0.0
+            self.metrics["replanning_updates"] = len(update_times)
+            return
+
+        intervals = [cur - prev for prev, cur in zip(update_times[:-1], update_times[1:]) if cur > prev]
+        if not intervals:
+            self.metrics["replanning_speed_hz"] = 0.0
+            self.metrics["avg_replanning_interval_s"] = 0.0
+            self.metrics["replanning_updates"] = len(update_times)
+            return
+
+        avg_interval = sum(intervals) / len(intervals)
+        self.metrics["avg_replanning_interval_s"] = avg_interval
+        self.metrics["replanning_speed_hz"] = 1.0 / avg_interval if avg_interval > 0 else 0.0
+        self.metrics["replanning_updates"] = len(update_times)
+
     def compute_all(self):
-        """Compute all metrics"""
-        print(f"[INFO] Computing metrics from {self.csv_file}")
-        
-        self.compute_path_length()
-        self.compute_time_to_goal()
-        self.compute_smoothness()
-        self.compute_velocity_metrics()
-        self.compute_acceleration()
-        self.compute_success_metrics()
-        
+        self.compute_goal_reach_rate()
+        self.compute_collision_count()
+        self.compute_path_optimality()
+        self.compute_replanning_speed()
         return self.metrics
-    
+
     def save_metrics(self, output_file):
-        """Save to JSON"""
-        try:
-            with open(output_file, 'w') as f:
-                json.dump(self.metrics, f, indent=2)
-            print(f"[SUCCESS] Metrics saved to {output_file}")
-        except Exception as e:
-            print(f"[ERROR] Failed to save metrics: {e}")
-    
+        with open(output_file, "w") as handle:
+            json.dump(self.metrics, handle, indent=2)
+        print("[SUCCESS] Metrics saved to {}".format(output_file))
+
     def print_metrics(self):
-        """Print in table format"""
-        print("\n" + "="*60)
-        print("DWA PERFORMANCE METRICS")
-        print("="*60)
-        
-        # Category headers
-        categories = {
-            'Path': ['path_length_m', 'smoothness_rad', 'avg_curvature_rad_per_m'],
-            'Time': ['time_to_goal_s'],
-            'Velocity': ['avg_linear_velocity_m_s', 'max_linear_velocity_m_s', 
-                        'linear_velocity_std_m_s', 'avg_angular_velocity_rad_s'],
-            'Acceleration': ['max_acceleration_m_s2', 'avg_acceleration_m_s2'],
-            'Success': ['goal_reached']
-        }
-        
-        for category, keys in categories.items():
-            print(f"\n{category}:")
-            print("-" * 60)
-            for key in keys:
-                if key in self.metrics:
-                    value = self.metrics[key]
-                    if isinstance(value, float):
-                        print(f"  {key:40s}: {value:12.4f}")
-                    else:
-                        print(f"  {key:40s}: {value}")
-        
-        print("\n" + "="*60 + "\n")
+        print("\n" + "=" * 60)
+        print("NAVIGATION METRICS")
+        print("=" * 60)
+        print("Goal Reach Rate       : {:.2f}%".format(self.metrics["goal_reach_rate_percent"]))
+        print("Collision Count       : {}".format(self.metrics["collision_count"]))
+        print("Path Optimality       : {:.4f}".format(self.metrics["path_optimality"]))
+        print("Re-planning Speed     : {:.4f} Hz".format(self.metrics["replanning_speed_hz"]))
+        print("Avg Replan Interval   : {:.4f} s".format(self.metrics["avg_replanning_interval_s"]))
+        print("=" * 60 + "\n")
+
 
 def main():
-    parser = argparse.ArgumentParser(description='Compute DWA metrics')
-    parser.add_argument('csv_file', help='Metrics CSV file')
-    parser.add_argument('-o', '--output', help='Output JSON file', default=None)
-    
+    parser = argparse.ArgumentParser(description="Compute TurtleBot3 navigation metrics")
+    parser.add_argument("csv_file", help="Metrics CSV file")
+    parser.add_argument("-o", "--output", default=None, help="Output JSON file")
     args = parser.parse_args()
-    
-    if args.output is None:
-        args.output = args.csv_file.replace('.csv', '_metrics.json')
-    
-    computer = MetricsComputer(args.csv_file)
-    metrics = computer.compute_all()
-    
-    computer.print_metrics()
-    computer.save_metrics(args.output)
 
-if __name__ == '__main__':
+    output_file = args.output or args.csv_file.replace(".csv", "_metrics.json")
+
+    computer = MetricsComputer(args.csv_file)
+    computer.compute_all()
+    computer.print_metrics()
+    computer.save_metrics(output_file)
+
+
+if __name__ == "__main__":
     main()

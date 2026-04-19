@@ -1,16 +1,12 @@
 {
-  "path_length_m": 11.517779709998877,
-  "time_to_goal_s": 0.047,
-  "smoothness_rad": 96.46317533820161,
-  "avg_curvature_rad_per_m": 0.033366715786302875,
-  "avg_linear_velocity_m_s": 0.11949460395418506,
-  "max_linear_velocity_m_s": 0.2742140610241897,
-  "min_linear_velocity_m_s": 6.873329946314188e-06,
-  "linear_velocity_std_m_s": 0.1190493645728176,
-  "avg_angular_velocity_rad_s": 0.3124792257055137,
-  "max_angular_velocity_rad_s": 1.821408528711894,
-  "velocity_reversals": 0,
-  "max_acceleration_m_s2": 0.9492973355756612,
-  "avg_acceleration_m_s2": 0.08364252045263507,
-  "goal_reached": true
+  "goal_reach_rate": 1.0,
+  "goal_reach_rate_percent": 100.0,
+  "successful_goals": 1,
+  "total_goal_attempts": 1,
+  "collision_count": 3,
+  "path_optimality": 0.7742865704577441,
+  "path_optimality_samples": 1,
+  "avg_replanning_interval_s": 0.10053243243243248,
+  "replanning_speed_hz": 9.947038739683302,
+  "replanning_updates": 371
 }
