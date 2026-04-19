@@ -1,5 +1,74 @@
+# ========================
+# ROS / Catkin
+# ========================
 build/
-devel/ 
-src/hybrid_planner_repo/
+devel/
+logs/
+build_isolated/
+devel_isolated/
+
 .catkin_workspace
+CATKIN_IGNORE
+
+# ========================
+# Your custom ignores
+# ========================
+src/hybrid_planner_repo/
 .codex
+
+# ========================
+# Python
+# ========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py[cod]
+
+# Virtual environments
+venv/
+.env/
+.envrc/
+
+# ========================
+# System files
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# Editor / IDE
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================
+# Logs & runtime files
+# ========================
+*.log
+*.out
+*.err
+
+# ========================
+# Build / packaging
+# ========================
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# ========================
+# ROS / Gazebo generated
+# ========================
+*.bag
+*.pcd
+
+# ========================
+# Misc
+# ========================
+.cache/
+coverage.xml
+.tox/
